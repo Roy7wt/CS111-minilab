@@ -29,5 +29,5 @@ start(void)
 		sys_yield();
 	}
 
-	sys_exit();
+	sys_exit(0);
 }
