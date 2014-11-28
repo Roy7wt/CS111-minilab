@@ -1,0 +1,118 @@
+Name: Mohammed Junaid Ahmed
+UCLA ID: 104-293-008
+
+Collaborators: None
+
+-------------------------------------------------------------------------------
+
+Response to Exercise 1:
+Yes, it will return the correct value. The reason being that the pid value is
+stored in the reg_eax field before the call to schedule. So, when the process
+runs later, the pid value is retrieved from the reg_eax.
+
+Response to Exercise 3:
+Approach: Added a queue to the process_t structure. The size of the queue is
+fixed to NPROC, as this is the maximum number of processes that can wait on
+any process. So when a process calls sys_wait, the interrupt function contains
+the if else case to check if the process as already exited. If it has then
+we return the exit status or else we add the pid of the calling process to the
+wait queue of the process for which the exit status was called and we block
+the calling process.
+  Then when the process calls exit, we check if there are any pending wait
+request on it. If it has any pending wait request we serve those requests by
+moving their status to P_RUNNABLE.
+
+Anything else you'd like us to know:
+
+
+
+Extra credit exercises:
+5.
+void start(void) {
+        int x = 0;  /* note that local variable x lives on the stack */
+        /* YOUR CODE HERE */
+	volatile int *ptr = &x;
+        pid_t p = sys_fork();
+        if (p == 0) {
+                /* YOUR CODE HERE */;
+		x = 1;
+	}
+        else if (p > 0)
+                sys_wait(p); // assume blocking implementation
+        app_printf("%d", x);
+        sys_exit(0);
+}
+
+
+6. 
+Added a new entry for INT_SYS_THREAD and a new sys_call sys_newthread.
+The sys_call sys_newthread takes the function pointer and passes that
+pointer as one of the input parameters to the interrupt function through
+eax register.
+
+static inline pid_t
+sys_newthread(void (*start_function)(void))
+{
+        pid_t pid;
+        asm volatile("int %1\n"
+	             : "=a" (pid)
+		     : "i" (INT_SYS_THREAD), "a" (start_function)
+                     : "cc", "memory");
+		     return pid;
+}
+
+In the interrupt function, added a new switch case for INT_SYS_THREAD.
+Here we call the the function thread_create which works similar to
+do_fork except that it initiaties the esp of the child process to the
+value passed in eax.
+
+void
+interrupt(registers_t *reg)
+{
+        case INT_SYS_THREAD: {
+                current->p_registers.reg_eax = thread_create(current);
+                run(current);
+        }
+}
+
+static pid_t
+thread_create(process_t *parent)
+{
+        int pid = parent->p_pid;
+        process_t *spawned_proc;
+        int i;
+
+        for (i = (pid + 1) % NPROCS; i != pid; i = (i + 1) % NPROCS) {
+                if (i == 0) {
+                        continue;
+                }
+                if (proc_array[i].p_state == P_EMPTY) {
+                        break;
+                }
+        }
+
+        // If we cannot find any empty descriptor entry, return -1
+        if ( i == pid) {
+                return -1;
+        }
+
+        spawned_proc = &proc_array[i];
+        // We have found an empty process descriptor entry
+
+        if (copy_reg(spawned_proc, parent) == -1) {
+                goto cleanup;
+        }
+        //      copy_stack(spawned_proc, parent);
+
+        spawned_proc->p_state = P_RUNNABLE;
+        spawned_proc->index = 0;
+        spawned_proc->p_registers.reg_eax = 0;
+	spawned_proc->p_registers.reg_eip = parent->p_registers.reg_eax;
+        spawned_proc->p_registers.reg_esp = PROC1_STACK_ADDR +
+                spawned_proc->p_pid * PROC_STACK_SIZE;
+        return i;
+ cleanup:
+        return -1;
+}
+
+7.
