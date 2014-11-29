@@ -13,7 +13,6 @@
 // The number of times each application should run
 #define RUNCOUNT	320
 
-
 /*****************************************************************************
  * sys_yield
  *
@@ -59,6 +58,28 @@ sys_exit(int status)
 		         "a" (status)
 		     : "cc", "memory");
     loop: goto loop; // Convince GCC that function truly does not return.
+}
+
+
+/*****************************************************************************
+ * sys_set_priority(priority)
+ *
+ *   Set priority for the current process.
+ *
+ *****************************************************************************/
+
+static inline int
+sys_set_priority(int priority)
+{
+	if (priority < MIN_PRIORITY || (priority > MAX_PRIORITY)) {
+		return -1;
+	}
+
+	asm volatile("int %0\n"
+		     : : "i" (INT_SET_PRIORITY),
+		         "a" (priority)
+		     : "cc", "memory");
+	return 0;
 }
 
 #endif

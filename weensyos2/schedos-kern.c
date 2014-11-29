@@ -41,6 +41,7 @@
 // Note that proc_array[0] is never used.
 // The first application process descriptor is proc_array[1].
 static process_t proc_array[NPROCS];
+static int proc_priority[NPROCS] = {20, 2, 3, 2, 4};
 
 // A pointer to the currently running process.
 // This is kept up to date by the run() function, in mpos-x86.c.
@@ -73,6 +74,7 @@ start(void)
 	for (i = 0; i < NPROCS; i++) {
 		proc_array[i].p_pid = i;
 		proc_array[i].p_state = P_EMPTY;
+		proc_array[i].p_priority = proc_priority[i];
 	}
 
 	// Set up process descriptors (the proc_array[])
@@ -98,7 +100,7 @@ start(void)
 	cursorpos = (uint16_t *) 0xB8000;
 
 	// Initialize the scheduling algorithm.
-	scheduling_algorithm = 1;
+	scheduling_algorithm = 2;
 
 	// Switch to the first process.
 	run(&proc_array[1]);
@@ -163,6 +165,9 @@ interrupt(registers_t *reg)
 		// Switch to the next runnable process.
 		schedule();
 
+	case INT_SET_PRIORITY:
+		current->p_priority = reg->reg_eax;
+		run(current);
 	default:
 		while (1)
 			/* do nothing */;
@@ -206,6 +211,25 @@ schedule(void)
 				if (proc_array[i].p_state == P_RUNNABLE) {
 					run(&proc_array[i]);
 				}
+			}
+		}
+	} else if (scheduling_algorithm == 2) {
+		while (1) {
+			pid_t pid = (current->p_pid + 1) % NPROCS;
+			int i = 0;
+			int priority = MAX_PRIORITY + 1;
+			int next_proc = -1;
+			while (i < NPROCS) {
+				if (proc_array[pid].p_state == P_RUNNABLE &&
+				    proc_array[pid].p_priority < priority) {
+					priority = proc_array[pid].p_priority;
+					next_proc = pid;
+				}
+				pid = (pid + 1) % NPROCS;
+				i++;
+			}
+			if (next_proc != -1) {
+				run(&proc_array[next_proc]);
 			}
 		}
 	}
