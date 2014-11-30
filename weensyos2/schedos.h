@@ -17,7 +17,8 @@
 #define INT_SYS_USER1		50
 #define INT_SYS_USER2		51
 #define INT_SET_PRIORITY        52
-
+#define INT_ACQ_LOCK            53
+#define INT_RELEASE_LOCK        54
 #define MIN_PRIORITY    1
 #define MAX_PRIORITY    20
 

@@ -25,7 +25,11 @@ start(void)
 
 	for (i = 0; i < RUNCOUNT; i++) {
 		// Write characters to the console, yielding after each one.
-		*cursorpos++ = PRINTCHAR;
+		sys_acquire_lock();
+		{
+			*cursorpos++ = PRINTCHAR;
+		}
+		sys_release_lock();
 		sys_yield();
 	}
 

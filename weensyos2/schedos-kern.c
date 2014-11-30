@@ -1,6 +1,7 @@
 #include "schedos-kern.h"
 #include "x86.h"
 #include "lib.h"
+#include "x86sync.h"
 
 /*****************************************************************************
  * schedos-kern
@@ -49,6 +50,48 @@ process_t *current;
 
 // The preferred scheduling algorithm.
 int scheduling_algorithm;
+
+
+// Data structures for locking
+uint32_t lock = 1;
+int queue[NPROCS];
+int f, r, count;
+
+int
+is_empty()
+{
+	return count == 0 ? 1 : 0;
+}
+
+int
+enqueue(int pid)
+{
+	if (count == NPROCS) {
+		return -1;
+	}
+	queue[r] = pid;
+	r = (r + 1) % NPROCS;
+	count++;
+
+	return 0;
+}
+
+int
+dequeue()
+{
+	int pid;
+
+	if (count == 0) {
+		return -1;
+	}
+
+	pid = queue[f];
+	f = (f + 1) % NPROCS;
+	count--;
+
+	return pid;
+}
+
 
 
 /*****************************************************************************
@@ -100,7 +143,7 @@ start(void)
 	cursorpos = (uint16_t *) 0xB8000;
 
 	// Initialize the scheduling algorithm.
-	scheduling_algorithm = 2;
+	scheduling_algorithm = 0;
 
 	// Switch to the first process.
 	run(&proc_array[1]);
@@ -108,6 +151,52 @@ start(void)
 	// Should never get here!
 	while (1)
 		/* do nothing */;
+}
+
+
+
+/*****************************************************************************
+ * start
+ *
+ *   Initialize the hardware and process descriptors, then run
+ *   the first process.
+ *
+ *****************************************************************************/
+
+static void
+acquire_lock(process_t *proc)
+{
+	int old_value = atomic_swap(&lock, 0);
+	if (old_value == 1) {
+		run(proc);
+	}
+
+	proc->p_state = P_BLOCKED;
+	enqueue(proc->p_pid);
+
+	schedule();
+}
+
+
+
+/*****************************************************************************
+ * start
+ *
+ *   Initialize the hardware and process descriptors, then run
+ *   the first process.
+ *
+ *****************************************************************************/
+
+static void
+release_lock(process_t *proc)
+{
+	if (is_empty()) {
+		atomic_swap(&lock, 1);
+	} else {
+ 		int pid = dequeue();
+		proc_array[pid].p_state = P_RUNNABLE;
+	}
+	run(proc);
 }
 
 
@@ -168,6 +257,13 @@ interrupt(registers_t *reg)
 	case INT_SET_PRIORITY:
 		current->p_priority = reg->reg_eax;
 		run(current);
+
+	case INT_ACQ_LOCK:
+		acquire_lock(current);
+
+	case INT_RELEASE_LOCK:
+		release_lock(current);
+
 	default:
 		while (1)
 			/* do nothing */;

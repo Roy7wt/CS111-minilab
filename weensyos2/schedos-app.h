@@ -13,6 +13,25 @@
 // The number of times each application should run
 #define RUNCOUNT	320
 
+
+static inline void
+sys_acquire_lock(void)
+{
+	asm volatile("int %0\n"
+		     : : "i" (INT_ACQ_LOCK)
+		     : "cc", "memory");
+}
+
+
+
+static inline void
+sys_release_lock(void)
+{
+	asm volatile("int %0\n"
+		     : : "i" (INT_RELEASE_LOCK)
+		     : "cc", "memory");
+}
+
 /*****************************************************************************
  * sys_yield
  *
