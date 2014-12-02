@@ -1,5 +1,5 @@
-Name:
-UCLA ID:
+Name: Mohammed Junaid Ahmed
+UCLA ID: 104-293-008
 
 Collaborators:
 
@@ -7,7 +7,7 @@ Collaborators:
 
 Response to Exercise 1:
 
-The name of the scheduling algorithm is:
+The name of the scheduling algorithm is: round-robin
 
 
 (Exercise 2 is a coding exercise)
@@ -16,18 +16,26 @@ The name of the scheduling algorithm is:
 Response to Exercise 3:
 
 Average turnaround time for scheduling_algorithm 0:
+ 	(1277+1278+1279+1280)/4 = 1278.5ms
+
 Average turnaround time for scheduling_algorithm 1:
+	320*2.5 = 800 millisecond
 
 Average wait time for scheduling_algorithm 0:
-Average wait time for scheduling_algorithm 1:
+	(0+1+2+3)/4 = 1.5 ms
 
+Average wait time for scheduling_algorithm 1:
+	(0+320+640+960)/4 = 480 ms
 
 Exercise 4:
 
 Did you complete Exercise 4A, Exercise 4B, or both for extra credit?
-
+Both
 
 Exercise 5:
+	 The first known timer interrupt occurs during the execution of process 4,
+	 and schedule() functions is called. schedule() finds the next runnable
+	 process and it. Thus, process 4 couldn't print its character.
 
 
 (Exercise 6 is a coding exercise)

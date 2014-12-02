@@ -32,6 +32,15 @@ sys_release_lock(void)
 		     : "cc", "memory");
 }
 
+static inline void
+sys_set_share(uint32_t share)
+{
+	asm volatile("int %0\n"
+		     : : "i" (INT_SET_SHARE),
+		       "a" (share)
+		     : "cc", "memory");
+}
+
 /*****************************************************************************
  * sys_yield
  *

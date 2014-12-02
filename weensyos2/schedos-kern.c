@@ -109,7 +109,7 @@ start(void)
 
 	// Set up hardware (schedos-x86.c)
 	segments_init();
-	interrupt_controller_init(1);
+	interrupt_controller_init(0);
 	console_clear();
 
 	// Initialize process descriptors as empty
@@ -118,6 +118,10 @@ start(void)
 		proc_array[i].p_pid = i;
 		proc_array[i].p_state = P_EMPTY;
 		proc_array[i].p_priority = proc_priority[i];
+
+		/* sharing */
+		proc_array[i].p_share = 1;
+		proc_array[i].p_run_cnt = 0;
 	}
 
 	// Set up process descriptors (the proc_array[])
@@ -143,7 +147,7 @@ start(void)
 	cursorpos = (uint16_t *) 0xB8000;
 
 	// Initialize the scheduling algorithm.
-	scheduling_algorithm = 0;
+	scheduling_algorithm = 3;
 
 	// Switch to the first process.
 	run(&proc_array[1]);
@@ -264,6 +268,9 @@ interrupt(registers_t *reg)
 	case INT_RELEASE_LOCK:
 		release_lock(current);
 
+	case INT_SET_SHARE:
+		current->p_share = reg->reg_eax;
+		run(current);
 	default:
 		while (1)
 			/* do nothing */;
@@ -328,7 +335,25 @@ schedule(void)
 				run(&proc_array[next_proc]);
 			}
 		}
-	}
+	} else if (scheduling_algorithm == 3) {
+		while (1) {
+			if (current->p_state == P_RUNNABLE && 
+			    current->p_run_cnt < current->p_share) {
+				current->p_run_cnt++;
+				run(current);
+			} else {
+				pid_t pid = current->p_pid;	
+				current->p_run_cnt = 0;
+				while (1) {
+					pid = (pid + 1) % NPROCS;
+					if (proc_array[pid].p_state == P_RUNNABLE) {
+						proc_array[pid].p_run_cnt++;
+						run(&proc_array[pid]);
+					}
+				}
+			}
+		}	
+	}		
 
 	// If we get here, we are running an unknown scheduling algorithm.
 	cursorpos = console_printf(cursorpos, 0x100, "\nUnknown scheduling algorithm %d\n", scheduling_algorithm);
